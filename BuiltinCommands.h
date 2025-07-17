@@ -13,12 +13,15 @@ class BuiltinCommands {
     Shell* shell;
     std::unordered_map<std::string, std::function<int(const std::vector<std::string>&)>> commands;
 
+    // Command implementations
     int cmdCd(const std::vector<std::string>& args);
     int cmdPwd(const std::vector<std::string>& args);
     int cmdEcho(const std::vector<std::string>& args);
     int cmdHelp(const std::vector<std::string>& args);
     int cmdExit(const std::vector<std::string>& args);
     int cmdEnv(const std::vector<std::string>& args);
+    int cmdCls(const std::vector<std::string>& args);
+    int cmdDir(const std::vector<std::string>& args);
 
    public:
     BuiltinCommands(Shell* shellPtr);

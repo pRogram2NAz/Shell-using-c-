@@ -1,22 +1,14 @@
 #include "Shell.h"
 
+#include <windows.h>
+
 #include <algorithm>
 #include <iostream>
 
 #include "Utils.h"
 
-#ifdef _WIN32
-#include <direct.h>
-#include <io.h>
-#include <windows.h>
-#else
-#include <signal.h>
-#include <unistd.h>
-#endif
-
 Shell* g_shell = nullptr;
 
-#ifdef _WIN32
 BOOL WINAPI consoleHandler(DWORD dwCtrlType) {
     switch (dwCtrlType) {
         case CTRL_C_EVENT:
@@ -29,34 +21,20 @@ BOOL WINAPI consoleHandler(DWORD dwCtrlType) {
             return FALSE;
     }
 }
-#else
-void signalHandler(int signum) {
-    if (signum == SIGINT) {
-        std::cout << "\n";
-        if (g_shell) {
-            g_shell->displayPrompt();
-        }
-    }
-}
-#endif
 
 Shell::Shell() : builtins(this), running(true) {
     g_shell = this;
     currentDirectory = Utils::getCurrentWorkingDirectory();
 
     // Set up signal handling
-#ifdef _WIN32
     SetConsoleCtrlHandler(consoleHandler, TRUE);
-#else
-    signal(SIGINT, signalHandler);
-#endif
 
     // Initialize some basic environment variables
     setEnvironmentVariable("PS1", "myshell> ");
     setEnvironmentVariable("HOME", Utils::getHomeDirectory());
     setEnvironmentVariable("PWD", currentDirectory);
     setEnvironmentVariable("SHELL", "myshell");
-    setEnvironmentVariable("USER", getenv("USER") ? getenv("USER") : "unknown");
+    setEnvironmentVariable("USER", getenv("USERNAME") ? getenv("USERNAME") : "unknown");
     setEnvironmentVariable("PATH", getenv("PATH") ? getenv("PATH") : "");
 }
 
@@ -65,7 +43,7 @@ Shell::~Shell() { g_shell = nullptr; }
 void Shell::run() {
     std::string input;
 
-    std::cout << "Welcome to MyShell v1.0\n";
+    std::cout << "Welcome to MyShell v1.0 (Windows)\n";
     std::cout << "Type 'help' for available commands or 'exit' to quit.\n\n";
 
     while (running) {
@@ -82,25 +60,20 @@ void Shell::run() {
         }
 
         try {
-            Pipeline pipeline = parser.parse(input);
+            Command command = parser.parse(input);
 
-            if (!pipeline.empty()) {
-                // Check if it's a builtin command
-                if (pipeline.size() == 1 && builtins.isBuiltin(pipeline[0].name)) {
-                    int result = builtins.execute(pipeline[0].name, pipeline[0].arguments);
-                    if (result == -1) {  // Special case for exit command
-                        running = false;
-                    }
-                } else {
-                    executor.execute(pipeline);
+            // Check if it's a builtin command
+            if (builtins.isBuiltin(command.name)) {
+                int result = builtins.execute(command.name, command.arguments);
+                if (result == -1) {  // Special case for exit command
+                    running = false;
                 }
+            } else {
+                executor.execute(command);
             }
         } catch (const std::exception& e) {
             Utils::printError("Error: " + std::string(e.what()));
         }
-
-        // Clean up any zombie processes
-        executor.cleanupZombies();
     }
 }
 
@@ -110,6 +83,8 @@ void Shell::displayPrompt() {
         prompt = "myshell> ";
     }
 
+    // Simple prompt display - just show the prompt string
+    // You can expand this later to support more prompt variables if needed
     size_t pos = prompt.find("\\w");
     if (pos != std::string::npos) {
         std::string shortPath = currentDirectory;
@@ -132,11 +107,7 @@ void Shell::setCurrentDirectory(const std::string& dir) {
 
 void Shell::setEnvironmentVariable(const std::string& name, const std::string& value) {
     environment[name] = value;
-#ifdef _WIN32
     _putenv_s(name.c_str(), value.c_str());
-#else
-    setenv(name.c_str(), value.c_str(), 1);
-#endif
 }
 
 std::string Shell::getEnvironmentVariable(const std::string& name) const {
@@ -158,10 +129,8 @@ void Shell::displayEnvironmentVariables() const {
         envVars.push_back(pair);
     }
 
-    // Sort alphabetically by variable name
     std::sort(envVars.begin(), envVars.end());
 
-    // Display sorted environment variables
     for (const auto& pair : envVars) {
         std::cout << pair.first << "=" << pair.second << std::endl;
     }

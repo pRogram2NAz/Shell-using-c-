@@ -9,18 +9,11 @@
 #include <string>
 #include <vector>
 
-#ifdef _WIN32
+// Windows-specific includes
 #include <direct.h>
 #include <io.h>
 #include <shlobj.h>
 #include <windows.h>
-#else
-#include <pwd.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <climits>
-#endif
 
 namespace Utils {
 
@@ -66,26 +59,14 @@ bool endsWith(const std::string& str, const std::string& suffix) {
            str.compare(str.length() - suffix.length(), suffix.length(), suffix) == 0;
 }
 
-bool fileExists(const std::string& path) {
-#ifdef _WIN32
-    return _access(path.c_str(), 0) == 0;
-#else
-    return access(path.c_str(), F_OK) == 0;
-#endif
-}
+bool fileExists(const std::string& path) { return _access(path.c_str(), 0) == 0; }
 
 bool isDirectory(const std::string& path) {
-#ifdef _WIN32
     DWORD attributes = GetFileAttributesA(path.c_str());
     return (attributes != INVALID_FILE_ATTRIBUTES) && (attributes & FILE_ATTRIBUTE_DIRECTORY);
-#else
-    struct stat statbuf;
-    return stat(path.c_str(), &statbuf) == 0 && S_ISDIR(statbuf.st_mode);
-#endif
 }
 
 bool isExecutable(const std::string& path) {
-#ifdef _WIN32
     // On Windows, check if file exists and has executable extension
     if (!fileExists(path)) return false;
 
@@ -94,27 +75,14 @@ bool isExecutable(const std::string& path) {
 
     return endsWith(lowerPath, ".exe") || endsWith(lowerPath, ".com") ||
            endsWith(lowerPath, ".bat") || endsWith(lowerPath, ".cmd");
-#else
-    return access(path.c_str(), X_OK) == 0;
-#endif
 }
 
 std::string getAbsolutePath(const std::string& path) {
-#ifdef _WIN32
     char fullPath[MAX_PATH];
     if (_fullpath(fullPath, path.c_str(), MAX_PATH) != nullptr) {
         return std::string(fullPath);
     }
     return path;
-#else
-    char* absPath = realpath(path.c_str(), nullptr);
-    if (absPath) {
-        std::string result(absPath);
-        free(absPath);
-        return result;
-    }
-    return path;
-#endif
 }
 
 std::string expandTilde(const std::string& path) {
@@ -127,11 +95,7 @@ std::string expandTilde(const std::string& path) {
         return home;
     }
 
-#ifdef _WIN32
     if (path[1] == '\\' || path[1] == '/') {
-#else
-    if (path[1] == '/') {
-#endif
         return home + path.substr(1);
     }
 
@@ -139,7 +103,6 @@ std::string expandTilde(const std::string& path) {
 }
 
 std::string getHomeDirectory() {
-#ifdef _WIN32
     char path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, path))) {
         return std::string(path);
@@ -157,43 +120,18 @@ std::string getHomeDirectory() {
     }
 
     return "C:\\";
-#else
-    const char* home = getenv("HOME");
-    if (home) {
-        return std::string(home);
-    }
-
-    struct passwd* pw = getpwuid(getuid());
-    if (pw && pw->pw_dir) {
-        return std::string(pw->pw_dir);
-    }
-
-    return "/";
-#endif
 }
 
 std::string getCurrentWorkingDirectory() {
-#ifdef _WIN32
     char buffer[MAX_PATH];
     if (_getcwd(buffer, MAX_PATH) != nullptr) {
         return std::string(buffer);
     }
     return "";
-#else
-    char buffer[PATH_MAX];
-    if (getcwd(buffer, sizeof(buffer)) != nullptr) {
-        return std::string(buffer);
-    }
-    return "";
-#endif
 }
 
 bool createDirectory(const std::string& path) {
-#ifdef _WIN32
     return _mkdir(path.c_str()) == 0 || errno == EEXIST;
-#else
-    return mkdir(path.c_str(), 0755) == 0 || errno == EEXIST;
-#endif
 }
 
 bool createDirectories(const std::string& path) {
@@ -258,7 +196,7 @@ std::string getDirectoryName(const std::string& path) {
         return ".";
     }
     if (pos == 0) {
-        return "/";
+        return "\\";
     }
     return path.substr(0, pos);
 }
@@ -294,7 +232,6 @@ bool isWhitespace(const std::string& str) {
 }
 
 size_t getFileSize(const std::string& path) {
-#ifdef _WIN32
     HANDLE hFile = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                                FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
@@ -309,26 +246,12 @@ size_t getFileSize(const std::string& path) {
 
     CloseHandle(hFile);
     return 0;
-#else
-    struct stat statbuf;
-    if (stat(path.c_str(), &statbuf) == 0) {
-        return static_cast<size_t>(statbuf.st_size);
-    }
-    return 0;
-#endif
 }
 
 std::string normalizePath(const std::string& path) {
     std::string normalized = path;
-
-#ifdef _WIN32
     // Convert forward slashes to backslashes on Windows
     std::replace(normalized.begin(), normalized.end(), '/', '\\');
-#else
-    // Convert backslashes to forward slashes on Unix
-    std::replace(normalized.begin(), normalized.end(), '\\', '/');
-#endif
-
     return normalized;
 }
 
