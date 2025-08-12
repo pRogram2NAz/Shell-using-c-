@@ -1,8 +1,5 @@
 #include "Parser.h"
 
-#include <algorithm>
-#include <sstream>
-
 #include "Utils.h"
 
 Parser::Parser() {}
@@ -11,20 +8,14 @@ Parser::~Parser() {}
 
 Command Parser::parse(const std::string& input) {
     Command cmd;
-    std::string processedInput = trim(input);
+    std::string processedInput = Utils::trim(input);
 
-    if (isEmpty(processedInput)) {
-        return cmd;
-    }
+    if (processedInput.empty()) return cmd;
 
     std::vector<std::string> tokens = tokenize(processedInput);
-
-    if (tokens.empty()) {
-        return cmd;
-    }
+    if (tokens.empty()) return cmd;
 
     cmd.name = tokens[0];
-
     for (size_t i = 1; i < tokens.size(); ++i) {
         cmd.arguments.push_back(tokens[i]);
     }
@@ -63,26 +54,19 @@ std::vector<std::string> Parser::tokenize(const std::string& input) {
             continue;
         }
 
-        if (!inQuotes && !inSingleQuotes) {
-            if (c == ' ' || c == '\t') {
-                if (!current.empty()) {
-                    tokens.push_back(current);
-                    current.clear();
-                }
-                continue;
+        if (!inQuotes && !inSingleQuotes && (c == ' ' || c == '\t')) {
+            if (!current.empty()) {
+                tokens.push_back(current);
+                current.clear();
             }
+            continue;
         }
 
         current += c;
     }
 
-    if (!current.empty()) {
-        tokens.push_back(current);
-    }
-
+    if (!current.empty()) tokens.push_back(current);
     return tokens;
 }
 
-bool Parser::isEmpty(const std::string& input) { return trim(input).empty(); }
-
-std::string Parser::trim(const std::string& str) { return Utils::trim(str); }
+bool Parser::isEmpty(const std::string& input) { return Utils::trim(input).empty(); }

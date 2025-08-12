@@ -11,7 +11,6 @@ struct Command {
     Command() {}
 
     void clear();
-    void print() const;
 };
 
 #endif
